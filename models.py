@@ -6,8 +6,7 @@ from pymongo import TEXT
 class User(Document):
    name: Annotated[str, Indexed()]
    age: int
-   program: BackLink[Program] = Field(json_schema_extra={"original_field": "owner"})
-
+   
    class Settings:
       name = "users"
 
@@ -28,7 +27,7 @@ class ProgramExercise(BaseModel): #base model cause its embedded in program not 
    training_day: int = Field(ge=0, le=6)
 
 class Program(Document):
-   user: Link[User]
+   user: Annotated[Link[User], Indexed()]
    name: Annotated[str, Indexed()]
    training_days: int = Field(ge=1, le=7)
    exercises: list[ProgramExercise] = []
