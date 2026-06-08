@@ -8,7 +8,7 @@ def get_database():
  
    client = MongoClient(CONNECTION_STRING)
  
-   return client['user_shopping_list']
+   return client['gym']
 
 app = FastAPI(debug=True)
 
@@ -139,7 +139,3 @@ async def update_exercise(exercise_id: int, exercise: ProgramExercise):
 @app.get('/print_fake_db')
 async def print_fake_db():
     print(fake_db)
-
-"""
-mongodb+srv://bungy:Qv4EO2Icc1F9kO3C@gymtest.lgwl2bo.mongodb.net/?appName=GymTest
-"""
