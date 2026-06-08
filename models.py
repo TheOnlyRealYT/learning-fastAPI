@@ -1,32 +1,23 @@
 from pydantic import BaseModel, Field
-from beanie import Document, BackLink, Link
+from beanie import Document, BackLink, Link, Indexed
+from typing import Annotated
 from pymongo import TEXT
 
 class User(Document):
-   name: str
+   name: Annotated[str, Indexed()]
    age: int
-   program: BackLink = Field(json_schema_extra={"original_field": "owner"})
+   program: BackLink[Program] = Field(json_schema_extra={"original_field": "owner"})
 
    class Settings:
       name = "users"
-      indexes = [
-         [
-            ("name", TEXT)
-         ],
-      ]
 
 class Exercise(Document):
-   name: str
+   name: Annotated[str, Indexed()]
    difficulty: int = Field(ge=1, le=5)
    ratings: list[int] = [0, 0, 0, 0] #1, 2, 3, 4 star rating
 
    class Settings:
       name = "exercises"
-      indexes = [
-         [
-            ("name", TEXT)
-         ],
-      ]
 
 class ProgramExercise(BaseModel): #base model cause its embedded in program not a separate collection 
    exercise: Link[Exercise]
@@ -38,14 +29,9 @@ class ProgramExercise(BaseModel): #base model cause its embedded in program not 
 
 class Program(Document):
    user: Link[User]
-   name: str
+   name: Annotated[str, Indexed()]
    training_days: int = Field(ge=1, le=7)
    exercises: list[ProgramExercise] = []
 
    class Settings:
       name = "programs"
-      indexes = [
-         [
-            ("name", TEXT)
-         ],
-      ]
