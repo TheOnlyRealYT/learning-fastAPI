@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from beanie import Document, BackLink, Link, Indexed
+from beanie import Document, BackLink, Link, Indexed, PydanticObjectId
 from typing import Annotated
 from pymongo import TEXT
 
@@ -19,6 +19,7 @@ class Exercise(Document):
       name = "exercises"
 
 class ProgramExercise(BaseModel): #base model cause its embedded in program not a separate collection 
+   id: PydanticObjectId = Field(default_factory=PydanticObjectId)
    exercise: Link[Exercise]
    training_order: int
    reps: int = 0
