@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
-from beanie import Document, BackLink, Link, Indexed, PydanticObjectId
+from beanie import Document, Link, Indexed, PydanticObjectId
 from typing import Annotated
-from pymongo import TEXT
 
 class User(BaseModel):
    username: Annotated[str, Indexed()]

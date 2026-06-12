@@ -1,23 +1,45 @@
-from fastapi import APIRouter, status, HTTPException
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, status, HTTPException, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from beanie import PydanticObjectId, WriteRules
+from typing import Annotated
 from .models import User, Program, Exercise, ProgramExercise, UserInDB
-from .utilities import hash_password
+from datetime import timedelta
+from .utilities import Token, Authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, hash_password, get_current_active_user
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+@router.post('/token')
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> Token:
+    user = await Authenticate_user(form_data.username.lower(), form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username.lower()}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
 
+@router.get('/user/me', tags=["A"], response_model=User)
+async def get_current_user(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    return current_user
 
-@router.get('/user/{user_id}', tags=["New"])
-async def get_user(user_id: PydanticObjectId):
+@router.get('/user/{username}', tags=["A"])
+async def get_user(username: str):
     """Fetch user using ID"""
-    user = await UserInDB.get(user_id)
+    user = await UserInDB.find_one(UserInDB.username == username)
     if user == None:
         return HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
     return User(**user.model_dump())
 
-@router.post('/create/user', response_model=User, tags=["New"])
+@router.post('/create/user', response_model=User, tags=["A"])
 async def register_user(user: User, password: str):
     """
     Creates a new user, insures already existing user data is not at risk of being overridden (which happens with .save())
