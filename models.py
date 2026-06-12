@@ -3,10 +3,14 @@ from beanie import Document, BackLink, Link, Indexed, PydanticObjectId
 from typing import Annotated
 from pymongo import TEXT
 
-class User(Document):
-   name: Annotated[str, Indexed()]
+class User(BaseModel):
+   username: Annotated[str, Indexed()]
+   email: str
    age: int
-   
+
+class UserInDB(Document, User):
+   hashed_password: str #we create this so we dont send passwords in API responses as its super unsafe
+
    class Settings:
       name = "users"
       validate_on_save = True
@@ -30,7 +34,7 @@ class ProgramExercise(BaseModel): #base model cause its embedded in program not 
    training_day: int = Field(ge=0, le=6)
 
 class Program(Document):
-   user: Annotated[Link[User], Indexed()]
+   user: Annotated[Link[UserInDB], Indexed()]
    name: Annotated[str, Indexed()]
    training_days: int = Field(ge=1, le=7)
    exercises: list[ProgramExercise] = []

@@ -1,28 +1,38 @@
 from fastapi import APIRouter, status, HTTPException
 from beanie import PydanticObjectId, WriteRules
-from .models import User, Program, Exercise, ProgramExercise
+from .models import User, Program, Exercise, ProgramExercise, UserInDB
+from .utilities import hash_password
 
 router = APIRouter()
 
-@router.get('/user/{user_id}')
+@router.get('/user/{user_id}', tags=["New"])
 async def get_user(user_id: PydanticObjectId):
     """Fetch user using ID"""
-    return await User.get(id)
+    return await UserInDB.get(id)
 
-@router.post('/create/user', response_model=User)
-async def create_user(user: User):
-    """Creates a new user, insures already exist user data is not at risk of being overridden (which happens with .save())"""
-    await user.insert()
-    return user
+@router.post('/create/user', response_model=User, tags=["New"])
+async def create_user(user: User, password: str):
+    """
+    Creates a new user, insures already existing user data is not at risk of being overridden (which happens with .save())
+    intakes a user model and a password to be hashed and saved in the database, to ensure never returning an API request
+    with a user password attached
+    """
+    try: 
+        hashed_password = hash_password(password)
+        userindb = UserInDB(**user.model_dump(), hashed_password=hashed_password)
+        await userindb.insert()
+        return user
+    except Exception as e:
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.patch('/user/{user_id}/update_profile', response_model=User)
-async def update_user(user_id: PydanticObjectId, new_user: User):
+async def update_user(user_id: PydanticObjectId, new_user: UserInDB):
     """Update a user's profile"""
     try: 
         await new_user.replace()
         await new_user.save()
         await new_user.sync()
-        return new_user
+        return User(**new_user.model_dump())
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
@@ -30,7 +40,7 @@ async def update_user(user_id: PydanticObjectId, new_user: User):
 async def delete_user(user_id: PydanticObjectId):
     try:
         await Program.find_all(Program.user.document_class.id == user_id).delete()
-        await User.find_one(User.id == user_id).delete()
+        await UserInDB.find_one(UserInDB.id == user_id).delete()
         return {"Success": "User Deleted Successfully"}
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)

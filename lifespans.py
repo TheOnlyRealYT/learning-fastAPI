@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from .models import (
-   User,
+   UserInDB,
    Program,
    Exercise
 )
@@ -18,6 +18,6 @@ async def life_span(_: FastAPI):
    db: Any = client.gym
    await init_beanie(
       database=db,
-      document_models=[User, Program, Exercise],
+      document_models=[UserInDB, Program, Exercise],
    )
    yield
