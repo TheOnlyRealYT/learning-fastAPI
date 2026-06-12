@@ -28,13 +28,25 @@ async def login_for_access_token(
     )
     return Token(access_token=access_token, token_type="bearer")
 
-@router.get('/user/me', tags=["A"], response_model=User)
+@router.get('/user/me', tags=["User Operations"], response_model=User)
 async def get_current_user(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     return current_user
 
-@router.get('/user/{username}', tags=["A"])
+@router.patch('/user/change_username', tags=["User Operations"], response_model=User)
+async def update_user(
+    username: str,
+    current_user: Annotated[UserInDB, Depends(get_current_active_user)]
+):
+    """Update current user's username"""
+    try:         
+        await current_user.set({UserInDB.username: username})
+        return User(**current_user.model_dump())
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
+
+@router.get('/user/{username}', tags=["User Operations"])
 async def get_user(username: str):
     """Fetch user using ID"""
     user = await UserInDB.find_one(UserInDB.username == username)
@@ -42,7 +54,7 @@ async def get_user(username: str):
         return HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
     return User(**user.model_dump())
 
-@router.post('/create/user', response_model=User, tags=["A"])
+@router.post('/create/user', response_model=User, tags=["User Operations"])
 async def register_user(user: User, password: str):
     """
     Creates a new user, insures already existing user data is not at risk of being overridden (which happens with .save())
@@ -57,18 +69,7 @@ async def register_user(user: User, password: str):
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.patch('/user/{username}/update_profile', response_model=User)
-async def update_user(user_id: PydanticObjectId, new_user: UserInDB):
-    """Update a user's profile"""
-    try: 
-        await new_user.update()
-        await new_user.save()
-        await new_user.sync()
-        return User(**new_user.model_dump())
-    except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
-
-@router.delete('/delete/user')
+@router.delete('/delete/user', tags=["User Operations"])
 async def delete_user(user_id: PydanticObjectId):
     try:
         await Program.find_all(Program.user.document_class.id == user_id).delete()
@@ -77,12 +78,12 @@ async def delete_user(user_id: PydanticObjectId):
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.get('/user/{user_id}/programs')
+@router.get('/user/me/programs')
 async def get_programs(user_id: PydanticObjectId):
     """Fetch programs using user ID"""
     return await Program.find(Program.user.document_class.id == user_id).to_list()
 
-@router.get('/user/{user_id}/programs/{program_id}')
+@router.get('/user/me/programs/{program_id}')
 async def get_program(program_id: PydanticObjectId):
     """Fetch one program using ID"""
     return await Program.get(program_id)
@@ -93,7 +94,7 @@ async def create_program(program: Program):
     await program.insert(link_rule=WriteRules.WRITE)
     return program
 
-@router.patch('/user/{user_id}/programs/{program_id}/update', response_model=Program)
+@router.patch('/user/me/programs/{program_id}/update', response_model=Program)
 async def update_program(new_program: Program):
     """Update Program"""
     try: 
@@ -112,7 +113,7 @@ async def delete_program(program_id: PydanticObjectId):
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.patch('/user/{user_id}/programs/{program_id}/add_exercise', response_model=ProgramExercise)
+@router.patch('/user/me/programs/{program_id}/add_exercise', response_model=ProgramExercise)
 async def add_program_exercise(program_id: PydanticObjectId, program_exercise: ProgramExercise):
     """Add exercise to program"""
     program = await Program.get(program_id)
@@ -123,7 +124,7 @@ async def add_program_exercise(program_id: PydanticObjectId, program_exercise: P
     await program.sync()
     return program_exercise
 
-@router.get('/user/{user_id}/programs/{program_id}/exercise/{exercise_id}')
+@router.get('/user/me/programs/{program_id}/exercise/{exercise_id}')
 async def get_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId):
     program = await Program.get(program_id)
     if program == None:
@@ -133,7 +134,7 @@ async def get_program_exercise(program_id: PydanticObjectId, exercise_id: Pydant
             return exercise_
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
-@router.patch('/user/{user_id}/programs/{program_id}/exercise/{exercise_id}/update', response_model=ProgramExercise)
+@router.patch('/user/me/programs/{program_id}/exercise/{exercise_id}/update', response_model=ProgramExercise)
 async def update_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId, program_exercise: ProgramExercise):
     """Update a program exercise"""
     program = await Program.get(program_id)
