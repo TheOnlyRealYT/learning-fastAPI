@@ -8,8 +8,10 @@ from .models import (
    Exercise
 )
 from typing import Any
+import dotenv, os
 
-CONNECTION_STRING = "mongodb+srv://bungy:Qv4EO2Icc1F9kO3C@gymtest.lgwl2bo.mongodb.net/?appName=GymTest" #super secret
+dotenv.load_dotenv()
+CONNECTION_STRING = os.getenv("CONNECTION_STRING") #super secret
 
 @asynccontextmanager
 async def life_span(_: FastAPI):
