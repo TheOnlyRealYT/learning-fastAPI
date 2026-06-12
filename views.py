@@ -1,17 +1,24 @@
 from fastapi import APIRouter, status, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from beanie import PydanticObjectId, WriteRules
 from .models import User, Program, Exercise, ProgramExercise, UserInDB
 from .utilities import hash_password
 
 router = APIRouter()
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
 @router.get('/user/{user_id}', tags=["New"])
 async def get_user(user_id: PydanticObjectId):
     """Fetch user using ID"""
-    return await UserInDB.get(id)
+    user = await UserInDB.get(user_id)
+    if user == None:
+        return HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
+    return User(**user.model_dump())
 
 @router.post('/create/user', response_model=User, tags=["New"])
-async def create_user(user: User, password: str):
+async def register_user(user: User, password: str):
     """
     Creates a new user, insures already existing user data is not at risk of being overridden (which happens with .save())
     intakes a user model and a password to be hashed and saved in the database, to ensure never returning an API request
@@ -25,11 +32,15 @@ async def create_user(user: User, password: str):
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
+@router.get('/user/login')
+async def login():
+    return 
+
 @router.patch('/user/{user_id}/update_profile', response_model=User)
 async def update_user(user_id: PydanticObjectId, new_user: UserInDB):
     """Update a user's profile"""
     try: 
-        await new_user.replace()
+        await new_user.update()
         await new_user.save()
         await new_user.sync()
         return User(**new_user.model_dump())

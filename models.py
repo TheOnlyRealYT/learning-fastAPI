@@ -5,8 +5,9 @@ from pymongo import TEXT
 
 class User(BaseModel):
    username: Annotated[str, Indexed()]
-   email: str
+   email: Annotated[str, Indexed()]
    age: int
+   disabled: bool = False
 
 class UserInDB(Document, User):
    hashed_password: str #we create this so we dont send passwords in API responses as its super unsafe
