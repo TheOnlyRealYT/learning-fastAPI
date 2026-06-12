@@ -3,7 +3,7 @@ from beanie import Document, Link, Indexed, PydanticObjectId
 from typing import Annotated
 
 class User(BaseModel):
-   username: Annotated[str, Indexed()]
+   username: Annotated[str, Indexed(unique=True)]
    email: Annotated[str, Indexed()]
    age: int
    disabled: bool = False

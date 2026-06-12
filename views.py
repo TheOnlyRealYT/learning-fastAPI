@@ -12,7 +12,10 @@ router = APIRouter()
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    user = await Authenticate_user(form_data.username.lower(), form_data.password)
+    user = await UserInDB.find_one(UserInDB.username == form_data.username.lower())
+    if user == None or user.id == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
+    user = await Authenticate_user(str(user.id), form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -21,7 +24,7 @@ async def login_for_access_token(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username.lower()}, expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 
@@ -54,11 +57,7 @@ async def register_user(user: User, password: str):
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.get('/user/login')
-async def login():
-    return 
-
-@router.patch('/user/{user_id}/update_profile', response_model=User)
+@router.patch('/user/{username}/update_profile', response_model=User)
 async def update_user(user_id: PydanticObjectId, new_user: UserInDB):
     """Update a user's profile"""
     try: 

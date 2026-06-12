@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated
 from fastapi import HTTPException, status, Depends
 from pydantic import BaseModel
+from beanie import PydanticObjectId
 from .models import UserInDB
 from datetime import datetime, timedelta, timezone
 import jwt, dotenv, os
@@ -13,7 +14,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+    id: PydanticObjectId | None = None
 
 dotenv.load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "")
@@ -35,8 +36,9 @@ def hash_password(password: str) -> str:
 def verify_password(hashed_password: str, password: str) -> bool:
     return password_context.verify(hashed_password, password)
 
-async def Authenticate_user(username: str, password: str):
-    user = await UserInDB.find_one(UserInDB.username == username)
+async def Authenticate_user(user_id: str, password: str):
+    print(user_id)
+    user = await UserInDB.get(PydanticObjectId(user_id))
     if user == None:
         HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
         return False
@@ -58,12 +60,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         id = payload.get("sub")
+
         if id is None:
             raise credentials_exception
-        token_data = TokenData(username=id)
+        token_data = TokenData(id=id)
     except InvalidTokenError:
         raise credentials_exception
-    user = await UserInDB.find_one(UserInDB.username == token_data.username)
+    user = await UserInDB.get(token_data.id)
     if user is None:
         raise credentials_exception
     return user
