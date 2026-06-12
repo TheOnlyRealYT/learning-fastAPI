@@ -9,6 +9,7 @@ class User(Document):
    
    class Settings:
       name = "users"
+      validate_on_save = True
 
 class Exercise(Document):
    name: Annotated[str, Indexed()]
@@ -17,6 +18,7 @@ class Exercise(Document):
 
    class Settings:
       name = "exercises"
+      validate_on_save = True
 
 class ProgramExercise(BaseModel): #base model cause its embedded in program not a separate collection 
    id: PydanticObjectId = Field(default_factory=PydanticObjectId)
@@ -35,3 +37,4 @@ class Program(Document):
 
    class Settings:
       name = "programs"
+      validate_on_save = True

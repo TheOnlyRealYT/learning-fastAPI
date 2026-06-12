@@ -1,5 +1,5 @@
-from fastapi import APIRouter, status, Response
-from beanie import PydanticObjectId, WriteRules, UpdateResponse
+from fastapi import APIRouter, status, HTTPException
+from beanie import PydanticObjectId, WriteRules
 from .models import User, Program, Exercise, ProgramExercise
 
 router = APIRouter()
@@ -20,16 +20,20 @@ async def update_user(user_id: PydanticObjectId, new_user: User):
     """Update a user's profile"""
     try: 
         await new_user.replace()
+        await new_user.save()
+        await new_user.sync()
         return new_user
     except Exception as e:
-        return Response({"Error": e}, status_code=status.HTTP_404_NOT_FOUND)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.delete('/delete/user')
 async def delete_user(user_id: PydanticObjectId):
     try:
-        return await User.find_one(User.id == user_id).delete()
+        await Program.find_all(Program.user.document_class.id == user_id).delete()
+        await User.find_one(User.id == user_id).delete()
+        return {"Success": "User Deleted Successfully"}
     except Exception as e:
-        return Response({"Error": e}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.get('/user/{user_id}/programs')
 async def get_programs(user_id: PydanticObjectId):
@@ -52,23 +56,26 @@ async def update_program(new_program: Program):
     """Update Program"""
     try: 
         await new_program.replace()
+        await new_program.save()
+        await new_program.sync()
         return new_program
     except Exception as e:
-        return Response({"Error": e}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
     
 @router.delete('/delete/program')
 async def delete_program(program_id: PydanticObjectId):
     try:
-        return await Program.find_one(Program.id == program_id).delete()
+        await Program.find_one(Program.id == program_id).delete()
+        return {"Success": "Program Deleted Successfully"}
     except Exception as e:
-        return Response({"Error": e}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.patch('/user/{user_id}/programs/{program_id}/add_exercise', response_model=ProgramExercise)
 async def add_program_exercise(program_id: PydanticObjectId, program_exercise: ProgramExercise):
     """Add exercise to program"""
     program = await Program.get(program_id)
     if program == None:
-        return Response({"Error": "User Has no Program"}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
     program.exercises.append(program_exercise)
     await program.save()
     await program.sync()
@@ -78,36 +85,36 @@ async def add_program_exercise(program_id: PydanticObjectId, program_exercise: P
 async def get_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId):
     program = await Program.get(program_id)
     if program == None:
-        return Response({"Error": "User Has no Program"}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
     for exercise_ in program.exercises:
         if exercise_.id == exercise_id:
             return exercise_
-    return Response({"Error": "Program Exercise Not Found"}, status_code=status.HTTP_404_NOT_FOUND)
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
 @router.patch('/user/{user_id}/programs/{program_id}/exercise/{exercise_id}/update', response_model=ProgramExercise)
 async def update_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId, program_exercise: ProgramExercise):
     """Update a program exercise"""
     program = await Program.get(program_id)
     if program == None:
-        return Response({"Error": "User Has no Program"}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
     for exercise_ in program.exercises:
         if exercise_.id == exercise_id:
             exercise_ = program_exercise
             return exercise_
-    return Response({"Error": "Program Exercise Not Found"}, status_code=status.HTTP_404_NOT_FOUND)
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
 @router.delete('/delete/program/{program_id}/exercise/{exercise_id}')
 async def delete_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId):
     """Delete a program exercise"""
     program = await Program.get(program_id)
     if program == None:
-        return Response({"Error": "User Has no Program"}, status_code=status.HTTP_404_NOT_FOUND)
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
     for exercise_ in enumerate(program.exercises):
         if exercise_[1].id == exercise_id:
             temp = program.exercises.pop(exercise_[0])
             program.exercises.sort(key=id)
             return temp
-    return Response({"Error": "Program Exercise Not Found"}, status_code=status.HTTP_404_NOT_FOUND)
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
 @router.get('/exercises')
 async def get_all_exercises():
@@ -124,3 +131,22 @@ async def create_exercise(exercise: Exercise):
     """Create Exercise"""
     await exercise.insert()
     return exercise
+
+@router.patch('/exercise/{exercise_id}/update', response_model=Exercise)
+async def update_exercise(exercise: Exercise):
+    """Update an exercise"""
+    try:
+        await exercise.replace()
+        await exercise.save()
+        await exercise.sync()
+        return exercise
+    except Exception as e:
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
+    
+@router.delete('/exercise/{exercise_id}/delete')
+async def delete_exercise(exercise_id: PydanticObjectId):
+    try:
+        await Exercise.find_one(Exercise.id == exercise_id).delete()
+        return {"Success": "Exercise Deleted Successfully"}
+    except Exception as e:
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
