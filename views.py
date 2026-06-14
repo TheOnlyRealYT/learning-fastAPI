@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from beanie import PydanticObjectId, WriteRules
+from beanie import PydanticObjectId, WriteRules, Link
 from typing import Annotated
 from .models import User, Program, Exercise, ProgramExercise, UserInDB
 from datetime import timedelta
@@ -46,14 +46,6 @@ async def update_user(
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.get('/user/{username}', tags=["User Operations"])
-async def get_user(username: str):
-    """Fetch user using ID"""
-    user = await UserInDB.find_one(UserInDB.username == username)
-    if user == None:
-        return HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
-    return User(**user.model_dump())
-
 @router.post('/create/user', response_model=User, tags=["User Operations"])
 async def register_user(user: User, password: str):
     """
@@ -70,40 +62,75 @@ async def register_user(user: User, password: str):
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.delete('/delete/user', tags=["User Operations"])
-async def delete_user(user_id: PydanticObjectId):
+async def delete_user(user_id: PydanticObjectId, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
+    # if current_user.role != "Admin": FORBIDDEN ERROR
     try:
+        user = await UserInDB.get(user_id)
+        if user == None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found/Not Logged In")
+        if user != current_user:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Can't Another User's Account")
         await Program.find_all(Program.user.document_class.id == user_id).delete()
-        await UserInDB.find_one(UserInDB.id == user_id).delete()
+        await user.delete()
         return {"Success": "User Deleted Successfully"}
     except Exception as e:
-        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.get('/user/me/programs')
-async def get_programs(user_id: PydanticObjectId):
-    """Fetch programs using user ID"""
-    return await Program.find(Program.user.document_class.id == user_id).to_list()
+async def get_programs(
+    current_user: Annotated[UserInDB, Depends(get_current_active_user)]
+    ):
+    """Fetch programs of current user"""
+    return await Program.find(Program.user.document_class.id == current_user.id).to_list()
 
 @router.get('/user/me/programs/{program_id}')
 async def get_program(program_id: PydanticObjectId):
-    """Fetch one program using ID"""
+    """Fetch current user program using ID"""
+    return await Program.get(program_id)
+
+@router.get('/user/{username}', tags=["User Operations"])
+async def get_user(username: str):
+    """Fetch user using ID"""
+    user = await UserInDB.find_one(UserInDB.username == username)
+    if user == None:
+        return HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
+    return User(**user.model_dump())
+
+@router.get('/user/{username}/programs')
+async def get_user_programs(
+    username: str
+    ):
+    """Fetch programs using username"""
+    user = await UserInDB.find_one(User.username == username)
+    if user == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
+    return await Program.find(Program.user.document_class.id == user.id).to_list()
+
+@router.get('/user/{username}/programs/{program_id}')
+async def get_user_program(user_id: str, program_id: PydanticObjectId):
+    """Fetch current user program using ID"""
     return await Program.get(program_id)
 
 @router.post('/create/program', response_model=Program)
-async def create_program(program: Program):
+async def create_program(program: Program, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """create programs and link with user ID"""
+    program.user = Link(current_user.to_ref(), UserInDB)
     await program.insert(link_rule=WriteRules.WRITE)
     return program
 
 @router.patch('/user/me/programs/{program_id}/update', response_model=Program)
-async def update_program(new_program: Program):
+async def update_program(program_id: PydanticObjectId, new_program: Program, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update Program"""
+    program = await Program.get(program_id)
+    if program == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Program Not Found")
+    if program.user != current_user.to_ref():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Cant Update A Program That Isn't Yours")
     try: 
-        await new_program.replace()
-        await new_program.save()
-        await new_program.sync()
-        return new_program
+        await program.update(**new_program.model_dump())
+        return program
     except Exception as e:
-        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
     
 @router.delete('/delete/program')
 async def delete_program(program_id: PydanticObjectId):
