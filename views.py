@@ -6,7 +6,7 @@ from .models import User, Program, Exercise, ProgramExercise, UserInDB
 from datetime import timedelta
 from .utilities import Token, Authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, hash_password, get_current_active_user
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/")
 
 @router.post('/token')
 async def login_for_access_token(
