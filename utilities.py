@@ -34,10 +34,12 @@ def hash_password(password: str) -> str:
     return password_context.hash(password)
 
 def verify_password(hashed_password: str, password: str) -> bool:
-    return password_context.verify(hashed_password, password)
+    try:
+        return password_context.verify(hashed_password, password)
+    except:
+        return False
 
-async def Authenticate_user(user_id: str, password: str):
-    user = await UserInDB.get(PydanticObjectId(user_id))
+async def Authenticate_user(user: UserInDB, password: str):
     if user == None:
         HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
         return False

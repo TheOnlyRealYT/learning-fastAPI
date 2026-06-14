@@ -2,11 +2,11 @@ from fastapi import APIRouter, status, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from beanie import PydanticObjectId, WriteRules, Link
 from typing import Annotated
-from .models import User, Program, Exercise, ProgramExercise, UserInDB
+from .models import User, Program, TempProgram, Exercise, ProgramExercise, UserInDB
 from datetime import timedelta
 from .utilities import Token, Authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, hash_password, get_current_active_user
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter()
 # split this in the main project in multiple routers for the models (prefixes, tags, dependencies, and responses)
 
 @router.post('/token')
@@ -16,7 +16,7 @@ async def login_for_access_token(
     user = await UserInDB.find_one(UserInDB.username == form_data.username.lower())
     if user == None or user.id == None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
-    user = await Authenticate_user(str(user.id), form_data.password)
+    user = await Authenticate_user(user, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,9 +113,9 @@ async def get_user_program(user_id: str, program_id: PydanticObjectId):
     return await Program.get(program_id)
 
 @router.post('/create/program', response_model=Program)
-async def create_program(program: Program, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
+async def create_program(new_program: TempProgram, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """create programs and link with user ID"""
-    program.user = Link(current_user.to_ref(), UserInDB)
+    program = Program(user = Link(current_user.to_ref(), UserInDB), **new_program.model_dump())
     await program.insert(link_rule=WriteRules.WRITE)
     return program
 
