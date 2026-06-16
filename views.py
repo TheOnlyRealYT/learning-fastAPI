@@ -108,8 +108,8 @@ async def get_user_programs(
     return await Program.find(Program.user.document_class.id == user.id).to_list()
 
 @router.get('/user/{username}/programs/{program_id}')
-async def get_user_program(user_id: str, program_id: PydanticObjectId):
-    """Fetch current user program using ID"""
+async def get_user_program(username: str, program_id: PydanticObjectId):
+    """Fetch current user program using ID Username is unimplemented and planned to be removed"""
     return await Program.get(program_id)
 
 @router.post('/create/program', response_model=Program)
@@ -120,15 +120,15 @@ async def create_program(new_program: TempProgram, current_user: Annotated[UserI
     return program
 
 @router.patch('/user/me/programs/{program_id}/update', response_model=Program)
-async def update_program(program_id: PydanticObjectId, new_program: Program, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
+async def update_program(program_id: PydanticObjectId, new_program: TempProgram, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update Program"""
     program = await Program.get(program_id)
     if program == None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Program Not Found")
-    if program.user != current_user.to_ref():
+    if program.user.ref != current_user.to_ref():
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Cant Update A Program That Isn't Yours")
     try: 
-        await program.update(**new_program.model_dump())
+        await program.set({Program.name: new_program.name, Program.training_days: new_program.training_days})
         return program
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)

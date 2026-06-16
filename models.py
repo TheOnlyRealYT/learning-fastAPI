@@ -36,7 +36,6 @@ class ProgramExercise(BaseModel): #base model cause its embedded in program not 
 class TempProgram(BaseModel):
    name: Annotated[str, Indexed()]
    training_days: int = Field(ge=1, le=7)
-   exercises: list[ProgramExercise] = []
 
 class Program(Document):
    user: Annotated[Link[UserInDB], Indexed()]
