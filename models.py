@@ -7,6 +7,7 @@ class User(BaseModel):
    email: Annotated[str, Indexed()]
    age: int
    disabled: bool = False
+   account_level: int = Field(ge=1, le=4) #client coach staff admin
 
 class UserInDB(Document, User):
    hashed_password: str #we create this so we dont send passwords in API responses as its super unsafe
