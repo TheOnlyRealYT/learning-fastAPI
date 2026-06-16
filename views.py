@@ -97,7 +97,7 @@ async def get_user(username: str):
         return HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
     return User(**user.model_dump())
 
-@router.get('/user/{username}/programs')
+@router.get('/user/{username}/programs', tags=["Program Operations"])
 async def get_user_programs(
     username: str
     ):
@@ -107,19 +107,19 @@ async def get_user_programs(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
     return await Program.find(Program.user.document_class.id == user.id).to_list()
 
-@router.get('/user/{username}/programs/{program_id}')
+@router.get('/user/{username}/programs/{program_id}', tags=["Program Operations"])
 async def get_user_program(username: str, program_id: PydanticObjectId):
     """Fetch current user program using ID Username is unimplemented and planned to be removed"""
     return await Program.get(program_id)
 
-@router.post('/create/program', response_model=Program)
+@router.post('/create/program', response_model=Program, tags=["Program Operations"])
 async def create_program(new_program: TempProgram, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """create programs and link with user ID"""
     program = Program(user = Link(current_user.to_ref(), UserInDB), **new_program.model_dump())
     await program.insert(link_rule=WriteRules.WRITE)
     return program
 
-@router.patch('/user/me/programs/{program_id}/update', response_model=Program)
+@router.patch('/user/me/programs/{program_id}/update', response_model=Program, tags=["Program Operations"])
 async def update_program(program_id: PydanticObjectId, new_program: TempProgram, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update Program"""
     program = await Program.get(program_id)
@@ -133,7 +133,7 @@ async def update_program(program_id: PydanticObjectId, new_program: TempProgram,
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
     
-@router.delete('/delete/program')
+@router.delete('/delete/program', tags=["Program Operations"])
 async def delete_program(program_id: PydanticObjectId):
     try:
         await Program.find_one(Program.id == program_id).delete()
