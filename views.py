@@ -134,9 +134,14 @@ async def update_program(program_id: PydanticObjectId, new_program: TempProgram,
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
     
 @router.delete('/delete/program', tags=["Program Operations"])
-async def delete_program(program_id: PydanticObjectId):
+async def delete_program(program_id: PydanticObjectId, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     try:
-        await Program.find_one(Program.id == program_id).delete()
+        program = await Program.find_one(Program.id == program_id)
+        if program == None:
+            return HTTPException(status.HTTP_404_NOT_FOUND, "Program Not Found, Check ID")
+        if program.user.ref != current_user.to_ref():
+            return HTTPException(status.HTTP_401_UNAUTHORIZED, "Can't delete a program that isn't yours")
+        await program.delete()
         return {"Success": "Program Deleted Successfully"}
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
