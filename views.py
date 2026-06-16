@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, HTTPException, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from beanie import PydanticObjectId, WriteRules, Link
 from typing import Annotated
@@ -77,17 +78,27 @@ async def delete_user(user_id: PydanticObjectId, current_user: Annotated[UserInD
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.get('/user/me/programs')
+@router.get('/user/me/programs', tags=["Program Operations"])
 async def get_programs(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)]
     ):
     """Fetch programs of current user"""
-    return await Program.find(Program.user.document_class.id == current_user.id).to_list()
+    programs = await Program.find(Program.user == UserInDB.link_from_id(current_user.id)).to_list()
+    return programs
 
-@router.get('/user/me/programs/{program_id}')
-async def get_program(program_id: PydanticObjectId):
+@router.get('/user/me/programs/{program_id}', tags=["Program Operations"])
+async def get_program(program_id: PydanticObjectId, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Fetch current user program using ID"""
-    return await Program.get(program_id)
+    program = await Program.get(program_id)
+    if program == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Program Not Found")
+    if program.user.ref != current_user.to_ref():
+        user = await UserInDB.get(program.user.ref.id)
+        if user == None:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Couldn't Be Fetched")
+        print('hello')
+        return RedirectResponse(f"/user/{user.username}/programs/{program_id}")
+    return program
 
 @router.get('/user/{username}', tags=["User Operations"])
 async def get_user(username: str):
@@ -109,7 +120,7 @@ async def get_user_programs(
 
 @router.get('/user/{username}/programs/{program_id}', tags=["Program Operations"])
 async def get_user_program(username: str, program_id: PydanticObjectId):
-    """Fetch current user program using ID Username is unimplemented and planned to be removed"""
+    """Fetch current user program using ID Username is unimplemented yet"""
     return await Program.get(program_id)
 
 @router.post('/create/program', response_model=Program, tags=["Program Operations"])
