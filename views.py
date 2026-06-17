@@ -121,7 +121,18 @@ async def get_user_programs(
 @router.get('/user/{username}/programs/{program_id}', tags=["Program Operations"])
 async def get_user_program(username: str, program_id: PydanticObjectId):
     """Fetch current user program using ID Username is unimplemented yet"""
-    return await Program.get(program_id)
+    user = await UserInDB.find_one(User.username == username)
+    if user == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User Not Found")
+    program = await Program.get(program_id)
+    if program == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Program Not Found")
+    if program.user == UserInDB.link_from_id(user.id):
+        return program
+    user = await UserInDB.get(program.user.ref.id)
+    if user == None:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Has No User")
+    return RedirectResponse(f"/user/{user.username}/programs/{program_id}")
 
 @router.post('/create/program', response_model=Program, tags=["Program Operations"])
 async def create_program(new_program: TempProgram, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
@@ -158,11 +169,13 @@ async def delete_program(program_id: PydanticObjectId, current_user: Annotated[U
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
 @router.patch('/user/me/programs/{program_id}/add_exercise', response_model=ProgramExercise)
-async def add_program_exercise(program_id: PydanticObjectId, program_exercise: ProgramExercise):
+async def add_program_exercise(program_id: PydanticObjectId, program_exercise: ProgramExercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Add exercise to program"""
     program = await Program.get(program_id)
     if program == None:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
+    if program.user != UserInDB.link_from_id(current_user.id):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Can't Make Changes To a Program That Isn't Yours")
     program.exercises.append(program_exercise)
     await program.save()
     await program.sync()
@@ -179,11 +192,15 @@ async def get_program_exercise(program_id: PydanticObjectId, exercise_id: Pydant
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
 @router.patch('/user/me/programs/{program_id}/exercise/{exercise_id}/update', response_model=ProgramExercise)
-async def update_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId, program_exercise: ProgramExercise):
+async def update_program_exercise(program_id: PydanticObjectId, 
+                                  exercise_id: PydanticObjectId, 
+                                  program_exercise: ProgramExercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update a program exercise"""
     program = await Program.get(program_id)
     if program == None:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
+    if program.user != UserInDB.link_from_id(current_user.id):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Can't Update A Program That Isn't Yours")
     for exercise_ in program.exercises:
         if exercise_.id == exercise_id:
             exercise_ = program_exercise
@@ -191,11 +208,15 @@ async def update_program_exercise(program_id: PydanticObjectId, exercise_id: Pyd
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
 @router.delete('/delete/program/{program_id}/exercise/{exercise_id}')
-async def delete_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId):
+async def delete_program_exercise(program_id: PydanticObjectId, 
+                                  exercise_id: PydanticObjectId, 
+                                  current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Delete a program exercise"""
     program = await Program.get(program_id)
     if program == None:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "User Program Not Found")
+    if program.user != UserInDB.link_from_id(current_user.id):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Can't Update A Program That Isn't Yours")
     for exercise_ in enumerate(program.exercises):
         if exercise_[1].id == exercise_id:
             temp = program.exercises.pop(exercise_[0])
