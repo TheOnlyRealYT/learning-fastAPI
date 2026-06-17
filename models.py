@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from beanie import Document, Link, Indexed, PydanticObjectId
 from typing import Annotated
+from datetime import timedelta
 
 class User(BaseModel):
    username: Annotated[str, Indexed(unique=True)]
@@ -17,6 +18,9 @@ class UserInDB(Document, User):
    class Settings:
       name = "users"
       validate_on_save = True
+      use_cache = True #cache probably will be swapped for radis
+      cache_expiration_time = timedelta(minutes=5)
+      cache_capacity = 1000
 
 class Exercise(Document):
    name: Annotated[str, Indexed()]
