@@ -22,10 +22,15 @@ class UserInDB(Document, User):
       cache_expiration_time = timedelta(minutes=5)
       cache_capacity = 1000
 
+class ExerciseCatagory(BaseModel):
+   name: str = "Exercise"
+   tags: list[str] = []
+
 class Exercise(Document):
    name: Annotated[str, Indexed()]
    difficulty: int = Field(ge=1, le=5)
    ratings: list[int] = [0, 0, 0, 0] #1, 2, 3, 4 star rating
+   catagory: ExerciseCatagory = ExerciseCatagory()
 
    class Settings:
       name = "exercises"

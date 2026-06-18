@@ -225,8 +225,10 @@ async def delete_program_exercise(program_id: PydanticObjectId,
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
 @router.get('/exercises')
-async def get_all_exercises():
+async def get_all_exercises(category: str | None = None):
     """Get all Exercises"""
+    if category:
+        return await Exercise.find(Exercise.catagory.name == category).to_list()
     return await Exercise.find_all().to_list()
 
 @router.get('/exercise/{exercise_id}')
