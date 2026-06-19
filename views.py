@@ -237,13 +237,15 @@ async def get_exercise(exercise_id: PydanticObjectId):
     return await Exercise.get(exercise_id)
 
 @router.post('/create/exercise', response_model=Exercise)
-async def create_exercise(exercise: Exercise):
+async def create_exercise(exercise: Exercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Create Exercise"""
+    if current_user.account_level == None or current_user.account_level < 2:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Clients Can't Add Exercises")
     await exercise.insert()
     return exercise
 
 @router.patch('/exercise/{exercise_id}/update', response_model=Exercise)
-async def update_exercise(exercise: Exercise):
+async def update_exercise(exercise: Exercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update an exercise"""
     try:
         await exercise.replace()
@@ -254,7 +256,7 @@ async def update_exercise(exercise: Exercise):
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
     
 @router.delete('/exercise/{exercise_id}/delete')
-async def delete_exercise(exercise_id: PydanticObjectId):
+async def delete_exercise(exercise_id: PydanticObjectId, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     try:
         await Exercise.find_one(Exercise.id == exercise_id).delete()
         return {"Success": "Exercise Deleted Successfully"}
