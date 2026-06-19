@@ -247,6 +247,8 @@ async def create_exercise(exercise: Exercise, current_user: Annotated[UserInDB, 
 @router.patch('/exercise/{exercise_id}/update', response_model=Exercise)
 async def update_exercise(exercise: Exercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update an exercise"""
+    if current_user.account_level == None or current_user.account_level < 2:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Clients Can't Change Exercises")
     try:
         await exercise.replace()
         await exercise.save()
@@ -257,6 +259,8 @@ async def update_exercise(exercise: Exercise, current_user: Annotated[UserInDB, 
     
 @router.delete('/exercise/{exercise_id}/delete')
 async def delete_exercise(exercise_id: PydanticObjectId, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
+    if current_user.account_level == None or current_user.account_level < 2:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Clients Can't Delete Exercises")
     try:
         await Exercise.find_one(Exercise.id == exercise_id).delete()
         return {"Success": "Exercise Deleted Successfully"}
