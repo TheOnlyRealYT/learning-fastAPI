@@ -224,19 +224,19 @@ async def delete_program_exercise(program_id: PydanticObjectId,
             return temp
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
-@router.get('/exercises')
+@router.get('/exercises', tags=["Exercise Operations"])
 async def get_all_exercises(category: str | None = None):
     """Get all Exercises"""
     if category:
         return await Exercise.find(Exercise.catagory.name == category).to_list()
     return await Exercise.find_all().to_list()
 
-@router.get('/exercise/{exercise_id}')
+@router.get('/exercise/{exercise_id}', tags=["Exercise Operations"])
 async def get_exercise(exercise_id: PydanticObjectId):
     """Get Exercise by ID"""
     return await Exercise.get(exercise_id)
 
-@router.post('/create/exercise', response_model=Exercise)
+@router.post('/create/exercise', tags=["Exercise Operations"], response_model=Exercise)
 async def create_exercise(exercise: Exercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Create Exercise"""
     if current_user.account_level == None or current_user.account_level < 2:
@@ -244,7 +244,7 @@ async def create_exercise(exercise: Exercise, current_user: Annotated[UserInDB, 
     await exercise.insert()
     return exercise
 
-@router.patch('/exercise/{exercise_id}/update', response_model=Exercise)
+@router.patch('/exercise/{exercise_id}/update', tags=["Exercise Operations"], response_model=Exercise)
 async def update_exercise(exercise: Exercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Update an exercise"""
     if current_user.account_level == None or current_user.account_level < 2:
@@ -257,7 +257,7 @@ async def update_exercise(exercise: Exercise, current_user: Annotated[UserInDB, 
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
     
-@router.delete('/exercise/{exercise_id}/delete')
+@router.delete('/exercise/{exercise_id}/delete', tags=["Exercise Operations"])
 async def delete_exercise(exercise_id: PydanticObjectId, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     if current_user.account_level == None or current_user.account_level < 2:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Clients Can't Delete Exercises")
