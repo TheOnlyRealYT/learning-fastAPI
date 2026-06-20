@@ -10,7 +10,7 @@ from .utilities import Token, Authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, cr
 router = APIRouter()
 # split this in the main project in multiple routers for the models (prefixes, tags, dependencies, and responses)
 
-@router.post('/token')
+@router.post('/token', tags=["Authentication"])
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
@@ -168,7 +168,7 @@ async def delete_program(program_id: PydanticObjectId, current_user: Annotated[U
     except Exception as e:
         return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, e)
 
-@router.patch('/user/me/programs/{program_id}/add_exercise', response_model=ProgramExercise)
+@router.patch('/user/me/programs/{program_id}/add_exercise', tags=["Program Exercise Operations"], response_model=ProgramExercise)
 async def add_program_exercise(program_id: PydanticObjectId, program_exercise: ProgramExercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
     """Add exercise to program"""
     program = await Program.get(program_id)
@@ -181,7 +181,7 @@ async def add_program_exercise(program_id: PydanticObjectId, program_exercise: P
     await program.sync()
     return program_exercise
 
-@router.get('/user/me/programs/{program_id}/exercise/{exercise_id}')
+@router.get('/user/me/programs/{program_id}/exercise/{exercise_id}', tags=["Program Exercise Operations"])
 async def get_program_exercise(program_id: PydanticObjectId, exercise_id: PydanticObjectId):
     program = await Program.get(program_id)
     if program == None:
@@ -191,7 +191,7 @@ async def get_program_exercise(program_id: PydanticObjectId, exercise_id: Pydant
             return exercise_
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
-@router.patch('/user/me/programs/{program_id}/exercise/{exercise_id}/update', response_model=ProgramExercise)
+@router.patch('/user/me/programs/{program_id}/exercise/{exercise_id}/update', tags=["Program Exercise Operations"], response_model=ProgramExercise)
 async def update_program_exercise(program_id: PydanticObjectId, 
                                   exercise_id: PydanticObjectId, 
                                   program_exercise: ProgramExercise, current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
@@ -207,7 +207,7 @@ async def update_program_exercise(program_id: PydanticObjectId,
             return exercise_
     return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Program Exercise Not Found")
 
-@router.delete('/delete/program/{program_id}/exercise/{exercise_id}')
+@router.delete('/delete/program/{program_id}/exercise/{exercise_id}', tags=["Program Exercise Operations"])
 async def delete_program_exercise(program_id: PydanticObjectId, 
                                   exercise_id: PydanticObjectId, 
                                   current_user: Annotated[UserInDB, Depends(get_current_active_user)]):
