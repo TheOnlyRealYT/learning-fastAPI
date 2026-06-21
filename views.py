@@ -10,6 +10,7 @@ from .utilities import Token, Authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, cr
 router = APIRouter()
 # split this in the main project in multiple routers for the models (prefixes, tags, dependencies, and responses)
 # USE .frontend() FOR EASY ROUTING (probably still needs cors)
+#KNOWN ISSUE: old 403 FORBIDDEN status code usage, convert to 401 unauthorized with a www-authorization header
 
 @router.post('/token', tags=["Authentication"])
 async def login_for_access_token(
